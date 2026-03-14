@@ -1,4 +1,4 @@
-## Interface: 120001, 110107
+## Interface: 120001
 ## Title: Warband Tax
 ## Notes: Warband Tax
 ## SavedVariablesPerCharacter: WarbandTaxDue, WarbandTaxToDate, WarbandTaxPercentage, WarbandQuietMode
