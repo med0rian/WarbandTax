@@ -1,0 +1,12 @@
+## Interface: 120001, 110107
+## Title: Warband Tax
+## Notes: Warband Tax
+## SavedVariablesPerCharacter: WarbandTaxDue, WarbandTaxToDate, WarbandTaxPercentage, WarbandQuietMode
+## Version: 0.0.9
+## Author: Zazuazee, medorian
+WarbandTax.lua
+WarbandTax.xml
+WarbandTax_Titan.lua
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
