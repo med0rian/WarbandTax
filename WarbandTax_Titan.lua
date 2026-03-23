@@ -31,13 +31,13 @@ local function GetColoredCoinText(amount)
 
     local parts = {};
     if gold > 0 then
-        table.insert(parts, string.format("|cffFFD700%dg|r", gold)); -- Gold in Gelb
+        table.insert(parts, string.format("|cffFFD700%dg|r", gold)); -- Gold is Gold
     end
     if silver > 0 then
-        table.insert(parts, string.format("|cffC0C0C0%ds|r", silver)); -- Silber in Silber
+        table.insert(parts, string.format("|cffC0C0C0%ds|r", silver)); -- Silber is Silber
     end
     if copper > 0 then
-        table.insert(parts, string.format("|cffB87333%dc|r", copper)); -- Kupfer in Kupfer
+        table.insert(parts, string.format("|cffB87333%dc|r", copper)); -- Kupfer is Kupfer
     end
     return table.concat(parts, " ");
 end
