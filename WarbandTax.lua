@@ -1,11 +1,14 @@
 function WarbandTax_OnLoad(self)
-    WT_SkipNextMoneyEvent = false
+    WT_BankOpen = false
+    WT_MailSent = false
 
     self:RegisterEvent("ADDON_LOADED")
     self:RegisterEvent("PLAYER_MONEY")
     self:RegisterEvent("LOOT_OPENED")
     self:RegisterEvent("QUEST_TURNED_IN")
     self:RegisterEvent("PLAYER_INTERACTION_MANAGER_FRAME_SHOW")
+    self:RegisterEvent("PLAYER_INTERACTION_MANAGER_FRAME_HIDE")
+    self:RegisterEvent("MAIL_SEND_SUCCESS")
 
     SLASH_WT1 = "/WT"
     SlashCmdList["WT"] = function(msg)
@@ -151,16 +154,35 @@ function WarbandTax_OnEvent(self, event, ...)
             WarbandQuietMode = WarbandQuietMode or 0
             WTCurrentMoney = GetMoney()
 
-            print("|cffFF7C0AWarband Tax|r loaded. /WT help")
+            print("|cffFF7C0AWarband Tax|r loaded. /WT help - Test Post")
         end
 
     elseif event == "PLAYER_MONEY" then
-        if WT_SkipNextMoneyEvent then
-            WT_SkipNextMoneyEvent = false
-            WTCurrentMoney = GetMoney()
+        local newMoney = GetMoney()
+
+        if WT_MailSent then
+            WT_MailSent = false
+            WTCurrentMoney = newMoney
             return
         end
-        WT_TaxFromDelta(GetMoney())
+
+        if WT_BankOpen then
+            WTCurrentMoney = newMoney
+            return
+        end
+        
+        if newMoney < WTCurrentMoney then
+            WTCurrentMoney = newMoney
+            return
+        end
+
+        if newMoney > WTCurrentMoney then
+            WT_TaxFromDelta(newMoney)
+            WTCurrentMoney = newMoney
+            return
+        end
+
+        WTCurrentMoney = newMoney
 
     elseif event == "LOOT_OPENED" then
         local lootMoney = 0
@@ -174,21 +196,21 @@ function WarbandTax_OnEvent(self, event, ...)
     elseif event == "QUEST_TURNED_IN" then
         local questID, xpReward, moneyReward = ...
         WT_TaxFromQuestMoney(moneyReward)
-        WT_SkipNextMoneyEvent = true
 
     elseif event == "PLAYER_INTERACTION_MANAGER_FRAME_SHOW" then
         local interactionType = ...
 
-        -- 68 = Konvergenz-Bank (always Warband)
-        if interactionType == 68 then
+        -- 68 = Konvergenz-Bank (always Warband) | 8 = NPC-Bank (can be Warband)
+        if interactionType == 68 or interactionType == 8 then
+            WT_BankOpen = true
             WT_PayTax(2)
             return
         end
 
-        -- 8 = NPC-Bank (can be Warband)
-        if interactionType == 8 then
-            WT_PayTax(2)
-            return
-        end
+    elseif event == "PLAYER_INTERACTION_MANAGER_FRAME_HIDE" then
+        WT_BankOpen = false
+
+    elseif event == "MAIL_SEND_SUCCESS" then
+        WT_MailSent = true
     end
 end
