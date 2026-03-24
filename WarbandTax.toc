@@ -2,7 +2,7 @@
 ## Title: Warband Tax
 ## Notes: Warband Tax
 ## SavedVariablesPerCharacter: WarbandTaxDue, WarbandTaxToDate, WarbandTaxPercentage, WarbandQuietMode
-## Version: 0.0.9
+## Version: 0.0.10
 ## Author: Zazuazee, medorian
 WarbandTax.lua
 WarbandTax.xml
