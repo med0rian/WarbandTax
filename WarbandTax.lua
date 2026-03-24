@@ -2,6 +2,8 @@ function WarbandTax_OnLoad(self)
     WT_BankOpen = false
     WT_IsTwinkMail = false
     WT_MailIncome = 0
+    WT_LootIncome = false      -- prevents double-tax from loot
+    WT_QuestIncome = false     -- prevents double-tax from quests
 
     self:RegisterEvent("ADDON_LOADED")
     self:RegisterEvent("PLAYER_MONEY")
@@ -9,7 +11,8 @@ function WarbandTax_OnLoad(self)
     self:RegisterEvent("QUEST_TURNED_IN")
     self:RegisterEvent("PLAYER_INTERACTION_MANAGER_FRAME_SHOW")
     self:RegisterEvent("PLAYER_INTERACTION_MANAGER_FRAME_HIDE")
-    self:RegisterEvent("MAIL_SEND_SUCCESS")
+    self:RegisterEvent("BANKFRAME_OPENED")
+    self:RegisterEvent("BANKFRAME_CLOSED")
 
     SLASH_WT1 = "/WT"
     SlashCmdList["WT"] = function(msg)
@@ -38,7 +41,7 @@ function WarbandTax_OnLoad(self)
             print("/WT verbose")
             print("/WT tax 10")
 
-		elseif msg:find("tax") then
+        elseif msg:find("tax") then
             local num = tonumber(msg:match("(%d+)"))
             if num then
                 WarbandTaxPercentage = num
@@ -48,10 +51,11 @@ function WarbandTax_OnLoad(self)
         else
             print("|cffFF7C0AWT|r: Version: "..C_AddOns.GetAddOnMetadata("WarbandTax","Version"))
             print(format("|cffFF7C0AWT|r: Current Tax Rate: %d%%", WarbandTaxPercentage))
-            --print("|cffFF7C0AWT|r: Current Tax Due: " .. C_CurrencyInfo.GetCoinText(WarbandTaxDue))
-			local due = WarbandTaxDue or 0
-			local dueText = (due > 0) and C_CurrencyInfo.GetCoinText(due) or "|cff00FF00Keine|r"
-			print("|cffFF7C0AWT|r: Current Tax Due: " .. dueText)
+
+            local due = WarbandTaxDue or 0
+            local dueText = (due > 0) and C_CurrencyInfo.GetCoinText(due) or "|cff00FF00Keine|r"
+            print("|cffFF7C0AWT|r: Current Tax Due: " .. dueText)
+
             print("|cffFF7C0AWT|r: Total Tax Paid: " .. C_CurrencyInfo.GetCoinText(WarbandTaxToDate))
         end
     end
@@ -90,6 +94,7 @@ end
 ---------------------------------------------------------
 
 local function WT_TaxFromDelta(newMoney)
+    -- simple delta tax for normal income
     if newMoney > WTCurrentMoney then
         local gained = newMoney - WTCurrentMoney
         local taxMoney = gained * WarbandTaxPercentage / 100
@@ -105,6 +110,7 @@ end
 
 local function WT_TaxFromLootMoney(lootMoney)
     if lootMoney and lootMoney > 0 then
+        WT_LootIncome = true  -- prevents double-tax in PLAYER_MONEY
         local taxMoney = lootMoney * WarbandTaxPercentage / 100
         if taxMoney > 0 then
             WarbandTaxDue = WarbandTaxDue + taxMoney
@@ -117,6 +123,7 @@ end
 
 local function WT_TaxFromQuestMoney(moneyReward)
     if moneyReward and moneyReward > 0 then
+        WT_QuestIncome = true -- prevents double-tax in PLAYER_MONEY
         local taxMoney = moneyReward * WarbandTaxPercentage / 100
         if taxMoney > 0 then
             WarbandTaxDue = WarbandTaxDue + taxMoney
@@ -132,7 +139,7 @@ end
 ---------------------------------------------------------
 
 local function WT_PayTax(bankType)
-    if bankType ~= 2 then return end  -- Warband-Bank your Client
+    if bankType ~= 2 then return end  -- Warband-Bank only
 
     local toPayTax = 0
     if GetMoney() > WarbandTaxDue then
@@ -164,31 +171,62 @@ function WarbandTax_OnEvent(self, event, ...)
             WarbandQuietMode = WarbandQuietMode or 0
             WTCurrentMoney = GetMoney()
 
-            print("|cffFF7C0AWarband Tax|r loaded. /WT help - Test Post")
+            print("|cffFF7C0AWarband Tax|r loaded. /WT help")
         end
 
     elseif event == "PLAYER_MONEY" then
         local newMoney = GetMoney()
 
-        if WT_MailSent then
-            WT_MailSent = false
+        -- Twink mail → ignore
+        if WT_IsTwinkMail then
+            WT_IsTwinkMail = false
             WTCurrentMoney = newMoney
             return
         end
 
+        -- Loot → ignore delta tax
+        if WT_LootIncome then
+            WT_LootIncome = false
+            WTCurrentMoney = newMoney
+            return
+        end
+
+        -- Quest → ignore delta tax
+        if WT_QuestIncome then
+            WT_QuestIncome = false
+            WTCurrentMoney = newMoney
+            return
+        end
+
+        -- AH/COD mail income
+        if WT_MailIncome and WT_MailIncome > 0 then
+            local taxMoney = WT_MailIncome * WarbandTaxPercentage / 100
+            if taxMoney > 0 then
+                WarbandTaxDue = WarbandTaxDue + taxMoney
+                if WarbandQuietMode == 0 then
+                    print(format("|cffFF7C0AWT|r: Taxed mail income: %s", C_CurrencyInfo.GetCoinText(taxMoney)))
+                end
+            end
+            WT_MailIncome = 0
+            WTCurrentMoney = newMoney
+            return
+        end
+
+        -- Bank open → never tax
         if WT_BankOpen then
             WTCurrentMoney = newMoney
             return
         end
-        
+
+        -- Gold decreased → never tax
         if newMoney < WTCurrentMoney then
             WTCurrentMoney = newMoney
             return
         end
 
+        -- Normal income (loot, quest, vendor)
         if newMoney > WTCurrentMoney then
             WT_TaxFromDelta(newMoney)
-            WTCurrentMoney = newMoney
             return
         end
 
@@ -210,17 +248,18 @@ function WarbandTax_OnEvent(self, event, ...)
     elseif event == "PLAYER_INTERACTION_MANAGER_FRAME_SHOW" then
         local interactionType = ...
 
-        -- 68 = Konvergenz-Bank (always Warband) | 8 = NPC-Bank (can be Warband)
+        -- 68 = Convergence Bank (always Warband)
+        -- 8 = NPC Bank (can be Warband)
         if interactionType == 68 or interactionType == 8 then
             WT_BankOpen = true
             WT_PayTax(2)
             return
         end
 
-    elseif event == "PLAYER_INTERACTION_MANAGER_FRAME_HIDE" then
-        WT_BankOpen = false
+    elseif event == "BANKFRAME_OPENED" then
+        WT_BankOpen = true
 
-    elseif event == "MAIL_SEND_SUCCESS" then
-        WT_MailSent = true
+    elseif event == "BANKFRAME_CLOSED" then
+        WT_BankOpen = false
     end
 end
