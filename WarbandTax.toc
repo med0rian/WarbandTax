@@ -4,9 +4,9 @@
 ## SavedVariablesPerCharacter: WarbandTaxDue, WarbandTaxToDate, WarbandTaxPercentage, WarbandQuietMode
 ## Version: 0.0.10
 ## Author: Zazuazee, medorian
+WarbandTax_Titan.lua
 WarbandTax.lua
 WarbandTax.xml
-WarbandTax_Titan.lua
 Libs\LibStub\LibStub.lua
 Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
 Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua

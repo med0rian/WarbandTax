@@ -10,7 +10,7 @@ local dataObject = LDB:NewDataObject("WarbandTaxTitan", {
     icon = "Interface\\MoneyFrame\\UI-GoldIcon",
 })
 
-local function GetColorbyRate(rate)
+function GetColorbyRate(rate)
     if rate >= 0 and rate < 25 then
         return "|cff00FF00"; -- Grün
     elseif rate >= 25 and rate < 50 then

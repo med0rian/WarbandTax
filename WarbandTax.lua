@@ -14,11 +14,26 @@ function WarbandTax_OnLoad(self)
     self:RegisterEvent("BANKFRAME_OPENED")
     self:RegisterEvent("BANKFRAME_CLOSED")
 
+---------------------------------------------------------
+-- Update Titan Panel
+---------------------------------------------------------
+local function WT_UpdateLDB()
+    local LDB = LibStub("LibDataBroker-1.1", true)
+    if not LDB then return end
+
+    local dataObject = LDB:GetDataObjectByName("WarbandTaxTitan")
+    if not dataObject then return end
+
+    local due = WarbandTaxDue or 0
+    dataObject.text = string.format("%s%d%%|r | %s", GetColorbyRate(WarbandTaxPercentage), WarbandTaxPercentage, (due > 0) and C_CurrencyInfo.GetCoinText(due) or "|cff00FF00Keine|r")
+end
+
     SLASH_WT1 = "/WT"
     SlashCmdList["WT"] = function(msg)
         if msg == "reset" then
             WarbandTaxDue = 0
             print("|cffFF7C0AWT|r: Tax due reset!")
+            WT_UpdateLDB()
 
         elseif msg == "quiet" then
             WarbandQuietMode = 1
