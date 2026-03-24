@@ -1,6 +1,7 @@
 function WarbandTax_OnLoad(self)
     WT_BankOpen = false
-    WT_MailSent = false
+    WT_IsTwinkMail = false
+    WT_MailIncome = 0
 
     self:RegisterEvent("ADDON_LOADED")
     self:RegisterEvent("PLAYER_MONEY")
@@ -58,19 +59,28 @@ function WarbandTax_OnLoad(self)
     -- Auction House tax via mail
     local origTakeInboxMoney = TakeInboxMoney
     TakeInboxMoney = function(index)
-        local header = C_Mail.GetInboxHeaderInfo(index)
-        if header and header.money and header.money > 0 then
-            local invoice = C_Mail.GetInboxInvoiceInfo(index)
-            if invoice and invoice.invoiceType == Enum.AuctionHouseInvoiceType.Seller then
-                local taxMoney = header.money * WarbandTaxPercentage / 100
-                if taxMoney > 0 then
-                    if WarbandQuietMode == 0 then
-                        print(format("|cffFF7C0AWT|r: Taxed auction house tax: %s", C_CurrencyInfo.GetCoinText(taxMoney)))
-                    end
-                    WarbandTaxDue = WarbandTaxDue + taxMoney
-                end
-            end
+        local _, _, sender, subject, money, CODAmount = GetInboxHeaderInfo(index)
+
+        -- no money → no tax
+        if not money or money <= 0 then
+            WT_MailIncome = 0
+            WT_IsTwinkMail = false
+            return origTakeInboxMoney(index)
         end
+
+        local invoice = GetInboxInvoiceInfo(index)
+        local invoiceType = invoice and invoice.invoiceType
+
+        -- invoiceType 2 = AH Seller, 3 = COD
+        if invoiceType == 2 or invoiceType == 3 then
+            WT_MailIncome = money
+            WT_IsTwinkMail = false
+        else
+            -- normal mail (Twink, NPC, refund)
+            WT_MailIncome = 0
+            WT_IsTwinkMail = true
+        end
+
         return origTakeInboxMoney(index)
     end
 end
